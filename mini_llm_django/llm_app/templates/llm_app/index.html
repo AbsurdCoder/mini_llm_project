@@ -1,0 +1,702 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini LLM UI</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'llm_app/css/styles.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="#">Mini LLM UI</a>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <ul class="nav nav-tabs" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="dashboard-tab" data-bs-toggle="tab" data-bs-target="#dashboard" type="button" role="tab" aria-controls="dashboard" aria-selected="true">Dashboard</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="data-tab" data-bs-toggle="tab" data-bs-target="#data" type="button" role="tab" aria-controls="data" aria-selected="false">Training Data</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tokenizers-tab" data-bs-toggle="tab" data-bs-target="#tokenizers" type="button" role="tab" aria-controls="tokenizers" aria-selected="false">Tokenizers</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="models-tab" data-bs-toggle="tab" data-bs-target="#models" type="button" role="tab" aria-controls="models" aria-selected="false">Models</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="training-tab" data-bs-toggle="tab" data-bs-target="#training" type="button" role="tab" aria-controls="training" aria-selected="false">Training</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="generation-tab" data-bs-toggle="tab" data-bs-target="#generation" type="button" role="tab" aria-controls="generation" aria-selected="false">Text Generation</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="myTabContent">
+            <!-- Dashboard Tab -->
+            <div class="tab-pane fade show active" id="dashboard" role="tabpanel" aria-labelledby="dashboard-tab">
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Training Data</h5>
+                            </div>
+                            <div class="card-body">
+                                <h3>{{ training_data_list.count }}</h3>
+                                <p>Available datasets</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Models</h5>
+                            </div>
+                            <div class="card-body">
+                                <h3>{{ model_list.count }}</h3>
+                                <p>Configured models</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Training Sessions</h5>
+                            </div>
+                            <div class="card-body">
+                                <h3>{{ training_session_list.count }}</h3>
+                                <p>Total training sessions</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Recent Training Sessions</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Model</th>
+                                                <th>Status</th>
+                                                <th>Started</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for session in training_session_list|slice:":5" %}
+                                            <tr>
+                                                <td>{{ session.model.name }}</td>
+                                                <td>
+                                                    {% if session.status == 'running' %}
+                                                    <span class="badge bg-primary">{{ session.get_status_display }}</span>
+                                                    {% elif session.status == 'completed' %}
+                                                    <span class="badge bg-success">{{ session.get_status_display }}</span>
+                                                    {% elif session.status == 'failed' %}
+                                                    <span class="badge bg-danger">{{ session.get_status_display }}</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">{{ session.get_status_display }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ session.started_at|date:"M d, Y H:i" }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="3" class="text-center">No training sessions yet</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Recent Text Generations</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>Model</th>
+                                                <th>Prompt</th>
+                                                <th>Created</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for gen in text_generation_list|slice:":5" %}
+                                            <tr>
+                                                <td>{{ gen.model.name }}</td>
+                                                <td>{{ gen.prompt|truncatechars:30 }}</td>
+                                                <td>{{ gen.created_at|date:"M d, Y H:i" }}</td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr>
+                                                <td colspan="3" class="text-center">No text generations yet</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training Data Tab -->
+            <div class="tab-pane fade" id="data" role="tabpanel" aria-labelledby="data-tab">
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Upload Training Data</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="training-data-form" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        {{ training_data_form.name.label_tag }}
+                                        {{ training_data_form.name }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ training_data_form.file.label_tag }}
+                                        {{ training_data_form.file }}
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Upload</button>
+                                </form>
+                                <div id="training-data-upload-status" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Available Training Data</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="training-data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Size</th>
+                                                <th>Uploaded</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for data in training_data_list %}
+                                            <tr>
+                                                <td>{{ data.name }}</td>
+                                                <td>{{ data.file_size|filesizeformat }}</td>
+                                                <td>{{ data.uploaded_at|date:"M d, Y H:i" }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-danger delete-training-data" data-id="{{ data.id }}">Delete</button>
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr id="no-training-data-row">
+                                                <td colspan="4" class="text-center">No training data available</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tokenizers Tab -->
+            <div class="tab-pane fade" id="tokenizers" role="tabpanel" aria-labelledby="tokenizers-tab">
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Create/Upload Tokenizer</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="tokenizer-form" enctype="multipart/form-data">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        {{ tokenizer_form.name.label_tag }}
+                                        {{ tokenizer_form.name }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ tokenizer_form.tokenizer_type.label_tag }}
+                                        {{ tokenizer_form.tokenizer_type }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ tokenizer_form.vocab_size.label_tag }}
+                                        {{ tokenizer_form.vocab_size }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ tokenizer_form.file.label_tag }}
+                                        {{ tokenizer_form.file }}
+                                        <div class="form-text">{{ tokenizer_form.file.help_text }}</div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Create/Upload</button>
+                                </form>
+                                <div id="tokenizer-upload-status" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Available Tokenizers</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="tokenizer-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Type</th>
+                                                <th>Vocab Size</th>
+                                                <th>Created</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for tokenizer in tokenizer_list %}
+                                            <tr>
+                                                <td>{{ tokenizer.name }}</td>
+                                                <td>{{ tokenizer.get_tokenizer_type_display }}</td>
+                                                <td>{{ tokenizer.vocab_size }}</td>
+                                                <td>{{ tokenizer.created_at|date:"M d, Y H:i" }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-danger delete-tokenizer" data-id="{{ tokenizer.id }}">Delete</button>
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr id="no-tokenizer-row">
+                                                <td colspan="5" class="text-center">No tokenizers available</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Models Tab -->
+            <div class="tab-pane fade" id="models" role="tabpanel" aria-labelledby="models-tab">
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <ul class="nav nav-pills mb-3" id="models-subtab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="create-model-tab" data-bs-toggle="pill" data-bs-target="#create-model" type="button" role="tab" aria-controls="create-model" aria-selected="true">Create New Model</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="upload-model-tab" data-bs-toggle="pill" data-bs-target="#upload-model" type="button" role="tab" aria-controls="upload-model" aria-selected="false">Upload Existing Model</button>
+                            </li>
+                        </ul>
+                        <div class="tab-content" id="models-subtab-content">
+                            <div class="tab-pane fade show active" id="create-model" role="tabpanel" aria-labelledby="create-model-tab">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Create New Model</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="model-config-form">
+                                            {% csrf_token %}
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.name.label_tag }}
+                                                        {{ model_config_form.name }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.model_type.label_tag }}
+                                                        {{ model_config_form.model_type }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.tokenizer.label_tag }}
+                                                        {{ model_config_form.tokenizer }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.d_model.label_tag }}
+                                                        {{ model_config_form.d_model }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.num_heads.label_tag }}
+                                                        {{ model_config_form.num_heads }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.num_layers.label_tag }}
+                                                        {{ model_config_form.num_layers }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.d_ff.label_tag }}
+                                                        {{ model_config_form.d_ff }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.max_seq_len.label_tag }}
+                                                        {{ model_config_form.max_seq_len }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        {{ model_config_form.dropout.label_tag }}
+                                                        {{ model_config_form.dropout }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Create Model</button>
+                                        </form>
+                                        <div id="model-config-status" class="mt-3"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="tab-pane fade" id="upload-model" role="tabpanel" aria-labelledby="upload-model-tab">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>Upload Existing Model</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form id="model-upload-form" enctype="multipart/form-data">
+                                            {% csrf_token %}
+                                            <div class="row">
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        {{ model_upload_form.name.label_tag }}
+                                                        {{ model_upload_form.name }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        {{ model_upload_form.model_type.label_tag }}
+                                                        {{ model_upload_form.model_type }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-4">
+                                                    <div class="mb-3">
+                                                        {{ model_upload_form.tokenizer.label_tag }}
+                                                        {{ model_upload_form.tokenizer }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        {{ model_upload_form.checkpoint_file.label_tag }}
+                                                        {{ model_upload_form.checkpoint_file }}
+                                                    </div>
+                                                </div>
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        {{ model_upload_form.config_file.label_tag }}
+                                                        {{ model_upload_form.config_file }}
+                                                        <div class="form-text">{{ model_upload_form.config_file.help_text }}</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Upload Model</button>
+                                        </form>
+                                        <div id="model-upload-status" class="mt-3"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Available Models</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="model-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Name</th>
+                                                <th>Type</th>
+                                                <th>Tokenizer</th>
+                                                <th>Parameters</th>
+                                                <th>Trained</th>
+                                                <th>Created</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for model in model_list %}
+                                            <tr>
+                                                <td>{{ model.name }}</td>
+                                                <td>{{ model.get_model_type_display }}</td>
+                                                <td>{{ model.tokenizer.name|default:"None" }}</td>
+                                                <td>{{ model.d_model }} x {{ model.num_layers }}</td>
+                                                <td>
+                                                    {% if model.checkpoint_file %}
+                                                    <span class="badge bg-success">Yes</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">No</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ model.created_at|date:"M d, Y H:i" }}</td>
+                                                <td>
+                                                    <div class="btn-group">
+                                                        <button class="btn btn-sm btn-primary train-model" data-id="{{ model.id }}">Train</button>
+                                                        <button class="btn btn-sm btn-danger delete-model" data-id="{{ model.id }}">Delete</button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr id="no-model-row">
+                                                <td colspan="7" class="text-center">No models available</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Training Tab -->
+            <div class="tab-pane fade" id="training" role="tabpanel" aria-labelledby="training-tab">
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Training Sessions</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-striped" id="training-session-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Model</th>
+                                                <th>Status</th>
+                                                <th>Started</th>
+                                                <th>Completed</th>
+                                                <th>Best Val Loss</th>
+                                                <th>Perplexity</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for session in training_session_list %}
+                                            <tr>
+                                                <td>{{ session.model.name }}</td>
+                                                <td>
+                                                    {% if session.status == 'running' %}
+                                                    <span class="badge bg-primary">{{ session.get_status_display }}</span>
+                                                    {% elif session.status == 'completed' %}
+                                                    <span class="badge bg-success">{{ session.get_status_display }}</span>
+                                                    {% elif session.status == 'failed' %}
+                                                    <span class="badge bg-danger">{{ session.get_status_display }}</span>
+                                                    {% else %}
+                                                    <span class="badge bg-secondary">{{ session.get_status_display }}</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ session.started_at|date:"M d, Y H:i"|default:"-" }}</td>
+                                                <td>{{ session.completed_at|date:"M d, Y H:i"|default:"-" }}</td>
+                                                <td>{{ session.best_val_loss|floatformat:4|default:"-" }}</td>
+                                                <td>{{ session.final_perplexity|floatformat:2|default:"-" }}</td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-info view-training-progress" data-id="{{ session.id }}">View Progress</button>
+                                                </td>
+                                            </tr>
+                                            {% empty %}
+                                            <tr id="no-training-session-row">
+                                                <td colspan="7" class="text-center">No training sessions available</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Progress Modal -->
+                <div class="modal fade" id="training-progress-modal" tabindex="-1" aria-labelledby="training-progress-modal-label" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="training-progress-modal-label">Training Progress</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div id="training-progress-container">
+                                    <div class="progress mb-3">
+                                        <div id="training-progress-bar" class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100">0%</div>
+                                    </div>
+                                    <div id="training-status" class="mb-3">
+                                        <p>Status: <span id="training-status-text">-</span></p>
+                                        <p>Message: <span id="training-message-text">-</span></p>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <canvas id="loss-chart"></canvas>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <canvas id="perplexity-chart"></canvas>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Configuration Modal -->
+                <div class="modal fade" id="training-config-modal" tabindex="-1" aria-labelledby="training-config-modal-label" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="training-config-modal-label">Configure Training</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="training-session-form">
+                                    {% csrf_token %}
+                                    <input type="hidden" id="training-model-id" name="model_id" value="">
+                                    <div class="mb-3">
+                                        {{ training_session_form.training_data.label_tag }}
+                                        {{ training_session_form.training_data }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ training_session_form.batch_size.label_tag }}
+                                        {{ training_session_form.batch_size }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ training_session_form.learning_rate.label_tag }}
+                                        {{ training_session_form.learning_rate }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ training_session_form.num_epochs.label_tag }}
+                                        {{ training_session_form.num_epochs }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ training_session_form.early_stopping_patience.label_tag }}
+                                        {{ training_session_form.early_stopping_patience }}
+                                        <div class="form-text">{{ training_session_form.early_stopping_patience.help_text }}</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ training_session_form.val_split.label_tag }}
+                                        {{ training_session_form.val_split }}
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="start-training-btn">Start Training</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Text Generation Tab -->
+            <div class="tab-pane fade" id="generation" role="tabpanel" aria-labelledby="generation-tab">
+                <div class="row mt-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Generate Text</h5>
+                            </div>
+                            <div class="card-body">
+                                <form id="text-generation-form">
+                                    {% csrf_token %}
+                                    <div class="mb-3">
+                                        {{ text_generation_form.model.label_tag }}
+                                        {{ text_generation_form.model }}
+                                    </div>
+                                    <div class="mb-3">
+                                        {{ text_generation_form.prompt.label_tag }}
+                                        {{ text_generation_form.prompt }}
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                {{ text_generation_form.max_length.label_tag }}
+                                                {{ text_generation_form.max_length }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                {{ text_generation_form.temperature.label_tag }}
+                                                {{ text_generation_form.temperature }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                {{ text_generation_form.top_k.label_tag }}
+                                                {{ text_generation_form.top_k }}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary">Generate</button>
+                                </form>
+                                <div id="generation-status" class="mt-3"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5>Generated Text</h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="generated-text-container" class="border p-3 bg-light" style="min-height: 200px;">
+                                    <p class="text-muted">Generated text will appear here...</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="{% static 'llm_app/js/main.js' %}"></script>
+</body>
+</html>

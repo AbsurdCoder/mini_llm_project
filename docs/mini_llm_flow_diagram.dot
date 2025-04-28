@@ -1,0 +1,58 @@
+digraph MiniLLM {
+  // Node styles
+  node [shape=box, style=filled, fontname="Arial", fontsize=12];
+  edge [fontname="Arial", fontsize=10];
+  
+  // Data nodes
+  DataSources [label="Data Sources\n(TXT/PDF/HTML)", fillcolor="#f9d5e5"];
+  TextSamples [label="Text Samples", fillcolor="#f9d5e5"];
+  TokenizedText [label="Tokenized Text", fillcolor="#f9d5e5"];
+  ModelInput [label="Model Input\n(Token IDs)", fillcolor="#f9d5e5"];
+  Output [label="Generated Text", fillcolor="#f9d5e5"];
+  
+  // Process nodes
+  DataLoading [label="Data Loading", fillcolor="#eeeeee"];
+  TextSplitting [label="Text Splitting", fillcolor="#eeeeee"];
+  TokenizerSelection [label="Tokenizer Selection", fillcolor="#eeeeee"];
+  BPETokenizer [label="BPE Tokenizer", fillcolor="#eeeeee"];
+  CharTokenizer [label="Character Tokenizer", fillcolor="#eeeeee"];
+  ModelSelection [label="Model Selection", fillcolor="#eeeeee"];
+  Loss [label="Loss Calculation", fillcolor="#eeeeee"];
+  ModelUpdate [label="Model Update", fillcolor="#eeeeee"];
+  LoadedModel [label="Loaded Model", fillcolor="#eeeeee"];
+  
+  // Model nodes
+  TransformerModel [label="Transformer Model\n(Encoder-Decoder)", fillcolor="#d5e8d4"];
+  DecoderModel [label="Decoder-Only Model", fillcolor="#d5e8d4"];
+  SavedModel [label="Saved Model", fillcolor="#d5e8d4"];
+  
+  // Output nodes
+  StreamlitUI [label="Streamlit UI", fillcolor="#dae8fc"];
+  
+  // Connections
+  DataSources -> DataLoading [label="Input"];
+  DataLoading -> TextSplitting [label="Process"];
+  TextSplitting -> TextSamples [label="Paragraph/Sentence/\nChunk/Semantic"];
+  
+  TextSamples -> TokenizerSelection;
+  TokenizerSelection -> BPETokenizer [label="BPE"];
+  TokenizerSelection -> CharTokenizer [label="Character"];
+  
+  BPETokenizer -> TokenizedText [label="Subword Units"];
+  CharTokenizer -> TokenizedText [label="Character Units"];
+  TokenizedText -> ModelInput;
+  
+  ModelInput -> ModelSelection;
+  ModelSelection -> TransformerModel;
+  ModelSelection -> DecoderModel;
+  
+  TransformerModel -> Loss [label="Forward Pass"];
+  DecoderModel -> Loss [label="Forward Pass"];
+  Loss -> ModelUpdate [label="Backward Pass"];
+  ModelUpdate -> SavedModel [label="Save Checkpoint"];
+  
+  SavedModel -> LoadedModel [label="Load for Inference"];
+  LoadedModel -> Output [label="Generate Text"];
+  
+  Output -> StreamlitUI [label="Display"];
+}
