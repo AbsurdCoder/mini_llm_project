@@ -4,3 +4,4 @@ lab/
 *.pt
 __pycache__/
 *.pyd
+checkpoints/
