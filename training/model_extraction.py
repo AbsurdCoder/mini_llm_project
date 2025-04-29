@@ -8,6 +8,7 @@ import os
 import json
 import torch
 import logging
+import traceback
 from typing import Dict, Any, Optional, Tuple, Union
 
 from models.transformer_model import TransformerModel, DecoderOnlyTransformer
@@ -74,14 +75,38 @@ def load_model_and_tokenizer(
     checkpoint_path = f"{model_path}.pt"
     if not os.path.exists(checkpoint_path):
         raise FileNotFoundError(f"Model checkpoint file not found: {checkpoint_path}")
-        
-    checkpoint = torch.load(checkpoint_path, map_location=device)
     
-    # Handle different checkpoint formats
-    if "model_state_dict" in checkpoint:
-        model.load_state_dict(checkpoint["model_state_dict"])
-    else:
-        model.load_state_dict(checkpoint)
+    try:
+        checkpoint = torch.load(checkpoint_path, map_location=device)
+        
+        # Enhanced handling of different checkpoint formats
+        if isinstance(checkpoint, dict):
+            # Check for nested state dict
+            if "model_state_dict" in checkpoint:
+                model.load_state_dict(checkpoint["model_state_dict"])
+            # Check for direct state dict (keys match model parameters)
+            elif any(key in checkpoint for key in model.state_dict().keys()):
+                # Filter out any non-parameter keys
+                filtered_state_dict = {k: v for k, v in checkpoint.items() if k in model.state_dict()}
+                model.load_state_dict(filtered_state_dict, strict=False)
+                if len(filtered_state_dict) < len(model.state_dict()):
+                    logger.warning(f"Loaded a subset of parameters ({len(filtered_state_dict)}/{len(model.state_dict())})")
+            else:
+                # Try loading directly, might fail but worth a try
+                try:
+                    model.load_state_dict(checkpoint)
+                except Exception as e:
+                    logger.error(f"Failed to load model state: {str(e)}")
+                    logger.error(f"Checkpoint keys: {checkpoint.keys() if isinstance(checkpoint, dict) else 'Not a dict'}")
+                    logger.error(f"Model expects keys like: {list(model.state_dict().keys())[:5]}")
+                    raise ValueError(f"Could not load model state from checkpoint: {str(e)}")
+        else:
+            # Direct state dict
+            model.load_state_dict(checkpoint)
+    except Exception as e:
+        logger.error(f"Error loading model: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise
     
     model.to(device)
     
@@ -146,40 +171,8 @@ def continue_training(
     Returns:
         Dictionary with training results
     """
-    # Load model
-    logger.info(f"Loading model from {model_path} for continued training")
-    
-    # Load model config
-    config_path = f"{model_path}_config.json"
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Model config file not found: {config_path}")
-        
-    with open(config_path, 'r') as f:
-        config = json.load(f)
-    
-    # Determine model type from config
-    model_type = config.get("model_type", "decoder_only")
-    
-    # Create model instance based on type
-    if model_type == "encoder_only":
-        model = EncoderOnlyModel(config)
-    elif model_type == "transformer":
-        model = TransformerModel(config)
-    else:  # Default to decoder_only
-        model = DecoderOnlyTransformer(config)
-    
-    # Load model weights
-    checkpoint_path = f"{model_path}.pt"
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Model checkpoint file not found: {checkpoint_path}")
-        
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")  # Load to CPU first
-    
-    # Handle different checkpoint formats
-    if "model_state_dict" in checkpoint:
-        model.load_state_dict(checkpoint["model_state_dict"])
-    else:
-        model.load_state_dict(checkpoint)
+    # Load model and tokenizer using the enhanced function
+    model, _ = load_model_and_tokenizer(model_path, device=device)
     
     # Create trainer
     trainer = Trainer(
@@ -220,40 +213,8 @@ def extract_model_for_inference(
     Returns:
         Path to the extracted model
     """
-    # Load model
-    logger.info(f"Extracting model from {model_path} for inference")
-    
-    # Load model config
-    config_path = f"{model_path}_config.json"
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Model config file not found: {config_path}")
-        
-    with open(config_path, 'r') as f:
-        config = json.load(f)
-    
-    # Determine model type from config
-    model_type = config.get("model_type", "decoder_only")
-    
-    # Create model instance based on type
-    if model_type == "encoder_only":
-        model = EncoderOnlyModel(config)
-    elif model_type == "transformer":
-        model = TransformerModel(config)
-    else:  # Default to decoder_only
-        model = DecoderOnlyTransformer(config)
-    
-    # Load model weights
-    checkpoint_path = f"{model_path}.pt"
-    if not os.path.exists(checkpoint_path):
-        raise FileNotFoundError(f"Model checkpoint file not found: {checkpoint_path}")
-        
-    checkpoint = torch.load(checkpoint_path, map_location="cpu")  # Load to CPU first
-    
-    # Handle different checkpoint formats
-    if "model_state_dict" in checkpoint:
-        model.load_state_dict(checkpoint["model_state_dict"])
-    else:
-        model.load_state_dict(checkpoint)
+    # Load model using the enhanced function
+    model, _ = load_model_and_tokenizer(model_path, device=device)
     
     # Set model to evaluation mode
     model.eval()
@@ -266,7 +227,7 @@ def extract_model_for_inference(
     
     # Save config
     with open(f"{output_path}_config.json", "w") as f:
-        json.dump(config, f, indent=2)
+        json.dump(model.config, f, indent=2)
     
     logger.info(f"Model extracted and saved to {output_path}.pt")
     
