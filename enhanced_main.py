@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 
 # Import tokenizers
-from tokenizers import CharacterTokenizer, BPETokenizer
+from ctokenizers import CharacterTokenizer, BPETokenizer
 
 # Import models
 from models import TransformerModel, DecoderOnlyTransformer, EncoderOnlyModel

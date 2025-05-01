@@ -7,7 +7,7 @@ import os
 import torch
 from pathlib import Path
 
-from tokenizers.fixed_bpe_tokenizer import BPETokenizer
+from ctokenizers.fixed_bpe_tokenizer import BPETokenizer
 from models import DecoderOnlyTransformer
 from utils.helpers import setup_logging
 
@@ -61,7 +61,7 @@ def main():
         logger.info("Falling back to original implementation")
         
         # Import original tokenizer as fallback
-        from tokenizers.bpe_tokenizer import BPETokenizer as OriginalBPETokenizer
+        from ctokenizers.bpe_tokenizer import BPETokenizer as OriginalBPETokenizer
         tokenizer = OriginalBPETokenizer.load(args.tokenizer_path)
     
     # Check if model exists
@@ -128,7 +128,7 @@ def main():
         )
     
     # Decode generated text with original tokenizer
-    from tokenizers.bpe_tokenizer import BPETokenizer as OriginalBPETokenizer
+    from ctokenizers.bpe_tokenizer import BPETokenizer as OriginalBPETokenizer
     original_tokenizer = OriginalBPETokenizer.load(args.tokenizer_path)
     original_text = original_tokenizer.decode(output_ids[0].tolist())
     

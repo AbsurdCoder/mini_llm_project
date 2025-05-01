@@ -1,7 +1,7 @@
 {
-  "train_size": 0,
-  "val_size": 0,
-  "test_size": 1,
-  "split_method": "paragraphs",
+  "train_size": 822882,
+  "val_size": 102860,
+  "test_size": 102861,
+  "split_method": "sentences",
   "data_path": "./data/train.txt"
 }
