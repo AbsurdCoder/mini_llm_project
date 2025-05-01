@@ -29,7 +29,7 @@ from models.transformer_model import DecoderOnlyTransformer
 from models.rag_utils import SimpleDocumentStore, DocumentProcessor, RAGModel
 from training.enhanced_trainer import Trainer
 from training.model_extraction import load_model_and_tokenizer, continue_training, extract_model_for_inference
-from tokenizers.bpe_tokenizer import BPETokenizer
+from ctokenizers.bpe_tokenizer import BPETokenizer
 
 def test_encoder_only_model():
     """Test the encoder-only BERT-like model."""

@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple, Any
 # Add project root to path to allow importing from other modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from tokenizers import CharacterTokenizer, BPETokenizer
+from ctokenizers import CharacterTokenizer, BPETokenizer
 from models import TransformerModel, DecoderOnlyTransformer
 
 
